@@ -44,7 +44,7 @@
                             <div class="form-group row">
                                 <label for="customer_no_hp" class="col-sm-2 col-form-label">No HP</label>
                                 <div class="col-sm-10">
-                                    <input type="text" class="form-control" id="customer_no_hp" name="customer_no_hp"
+                                    <input type="number" class="form-control" id="customer_no_hp" name="customer_no_hp"
                                         required>
                                 </div>
                             </div>
@@ -54,7 +54,6 @@
                                     <textarea class="form-control" id="customer_address" name="customer_address" rows="3" required></textarea>
                                 </div>
                             </div>
-
                             <div class="form-group row">
                                 <label for="products" class="col-sm-2 col-form-label">Produk</label>
                                 <div class="col-sm-10">
@@ -71,17 +70,20 @@
                                         <tbody>
                                             <tr>
                                                 <td>
-                                                    <select class="form-control" name="product_id[]">
+                                                    <select class="form-control product-select" name="product_id[]">
+                                                        <option value="">Pilih Produk</option>
                                                         @foreach ($products as $product)
                                                             <option value="{{ $product->id }}">{{ $product->name }}
                                                             </option>
                                                         @endforeach
                                                     </select>
                                                 </td>
-                                                <td><input type="number" class="form-control" name="quantity[]" required>
-                                                </td>
-                                                <td><input type="number" class="form-control" name="price[]" required></td>
-                                                <td><input type="number" class="form-control" name="total[]" readonly></td>
+                                                <td><input type="number" class="form-control quantity-input"
+                                                        name="quantity[]" required></td>
+                                                <td><input type="number" class="form-control price-input" name="price[]"
+                                                        required></td>
+                                                <td><input type="number" class="form-control total-input" name="total[]"
+                                                        readonly></td>
                                                 <td><button type="button"
                                                         class="btn btn-danger remove-product">Hapus</button></td>
                                             </tr>
@@ -98,18 +100,18 @@
                                 </div>
                             </div>
                             <div class="form-group row">
-                                <label for="total_dibayar" class="col-sm-2 col-form-label">Jumlah bayar</label>
+                                <label for="total_dibayar" class="col-sm-2 col-form-label">Jumlah Bayar</label>
                                 <div class="col-sm-10">
                                     <input type="number" class="form-control" id="total_dibayar" name="total_dibayar">
                                 </div>
                             </div>
-
                             <div class="form-group row">
                                 <div class="col-sm-10 offset-sm-2">
                                     <button type="submit" class="btn btn-primary">Bayar</button>
                                 </div>
                             </div>
                         </form>
+
                     </div>
                 </div>
             </div>
@@ -128,12 +130,18 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <p>Sisa kembalian: <span id="changeAmountDisplay"></span></p>
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fa fa-exclamation-triangle"></i> Fitur cetak struk sedang dalam perbaikan.
+                            Silakan lihat data transaksi di <a href="{{ route('riwayat_transaksi.index') }}">Riwayat
+                                Transaksi</a>.
+                        </div>
+                        <p>Sisa Kembalian: <span id="changeAmountDisplay"></span></p>
                         <input type="hidden" name="change_amount" id="changeAmountInput">
                         <input type="hidden" name="transaction_id" id="transactionIdInput">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                        {{-- <a href="{{ route('riwayat_transaksi.index') }}" class="btn btn-info">Riwayat Transaksi</a> --}}
                         <button type="submit" class="btn btn-primary" id="cetakBtn">Cetak Struk</button>
                     </div>
                 </form>
@@ -155,14 +163,39 @@
                 document.getElementById('total_amount').value = totalAmount;
             }
 
+            function fetchPrice(productSelect, row) {
+                const productId = productSelect.value;
+                if (productId) {
+                    fetch(`/product/price/${productId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const priceInput = row.querySelector('input[name="price[]"]');
+                            priceInput.value = data.price;
+                            calculateTotal();
+                        })
+                        .catch(error => console.error('Error fetching price:', error));
+                }
+            }
+
             document.querySelector('.add-product').addEventListener('click', function() {
                 const newRow = document.querySelector('#product_table tbody tr').cloneNode(true);
                 newRow.querySelectorAll('input').forEach(input => input.value = '');
+                newRow.querySelector('select').addEventListener('change', function() {
+                    fetchPrice(this, newRow);
+                });
                 newRow.querySelector('.remove-product').addEventListener('click', function() {
                     newRow.remove();
                     calculateTotal();
                 });
+                newRow.querySelector('input[name="quantity[]"]').addEventListener('input', calculateTotal);
+                newRow.querySelector('input[name="price[]"]').addEventListener('input', calculateTotal);
                 document.querySelector('#product_table tbody').appendChild(newRow);
+            });
+
+            document.querySelectorAll('.product-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    fetchPrice(this, this.closest('tr'));
+                });
             });
 
             document.querySelectorAll('.remove-product').forEach(button => {
@@ -172,7 +205,11 @@
                 });
             });
 
-            document.querySelectorAll('input[name="quantity[]"], input[name="price[]"]').forEach(input => {
+            document.querySelectorAll('input[name="quantity[]"]').forEach(input => {
+                input.addEventListener('input', calculateTotal);
+            });
+
+            document.querySelectorAll('input[name="price[]"]').forEach(input => {
                 input.addEventListener('input', calculateTotal);
             });
 
@@ -182,47 +219,23 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script>
-        // $(document).ready(function() {
-        //     $('form').submit(function(event) {
-        //         event.preventDefault();
-        //         var formData = $(this).serialize();
-        //         var totalAmount = parseFloat($('#total_amount').val());
-        //         var totalDibayar = parseFloat($('#total_dibayar').val());
-        //         var change = totalDibayar - totalAmount;
-        //         $.ajax({
-        //             url: $(this).attr('action'),
-        //             method: $(this).attr('method'),
-        //             data: formData,
-        //             success: function(response) {
-        //                 // $('#receiptModal').modal('show');
-        //                 // $('#changeAmount').text(change);
-        //                 $('#receiptModal').modal('show');
-        //                 $('#changeAmountDisplay').text(change);
-        //                 $('#changeAmountInput').val(change);
-        //                 $('#transactionIdInput').val(response.transaction_id);
-        //             },
-        //             error: function(xhr, status, error) {
-        //                 console.error(error);
-        //             }
-        //         });
-        //     });
-
-
-        //     // $('#printReceiptBtn').click(function() {
-        //     //     var transaksiId = $(this).data('transaksi-id');
-        //     //     var url = 'transaksi/cetak/' + transaksiId;
-        //     //     window.location.href = url;
-        //     // });
-        // });
-
-
         $(document).ready(function() {
+
+            function formatRupiah(angka) {
+                const formatter = new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR'
+                });
+                return formatter.format(angka);
+            }
+
             $('form').submit(function(event) {
                 event.preventDefault();
                 var formData = $(this).serialize();
                 var totalAmount = parseFloat($('#total_amount').val());
                 var totalDibayar = parseFloat($('#total_dibayar').val());
                 var change = totalDibayar - totalAmount;
+                var changeAmountFormatted = formatRupiah(change);
 
                 $.ajax({
                     url: $(this).attr('action'),
@@ -230,7 +243,7 @@
                     data: formData,
                     success: function(response) {
                         $('#receiptModal').modal('show');
-                        $('#changeAmountDisplay').text(change);
+                        $('#changeAmountDisplay').text(changeAmountFormatted);
                         $('#changeAmountInput').val(change);
                         $('#transactionIdInput').val(response.transaction_id);
                     },

@@ -36,6 +36,7 @@
                                             <th>Alamat</th>
                                             <th>Total Belanja</th>
                                             <th>Invoice</th>
+                                            <th>Kode Voucher</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -51,7 +52,6 @@
 
     <script>
         $(document).ready(function() {
-
             var SITEURL = "{{ route('riwayat_transaksi.index') }}"
 
             $.ajaxSetup({
@@ -109,7 +109,25 @@
                         data: 'invoice',
                         name: 'invoice',
                     },
+                    {
+                        data: 'kode_voucher',
+                        name: 'kode_voucher',
+                        render: function(data, type, row) {
+                            return `
+                                <span class="kode-voucher-text">${data}</span>
+                                `;
+                        },
+                    },
                 ]
+            });
+
+            $(document).on('click', '.copy-voucher', function() {
+                var voucherCode = $(this).data('code');
+                navigator.clipboard.writeText(voucherCode).then(function() {
+                    alert('Kode voucher disalin: ' + voucherCode);
+                }, function(err) {
+                    console.error('Gagal menyalin teks: ', err);
+                });
             });
         });
     </script>

@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('customer_email');
             $table->text('customer_address');
             // $table->date('transaction_date');
-            $table->decimal('total_harga', 10, 2);
-            $table->decimal('total_dibayar', 10, 2);
+            $table->decimal('total_harga', 15, 2);
+            $table->decimal('total_dibayar', 15, 2);
             $table->string('invoice');
             $table->string('kode_voucher');
             $table->string('status_voucher');

@@ -50,6 +50,8 @@ Route::middleware(['auth'])->group(
         Route::post('produk', [ProdukController::class, 'store']);
         Route::get('produk/{produk}/edit', [ProdukController::class, 'edit']);
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy']);
+        Route::get('/product/price/{id}', [ProdukController::class, 'getPrice'])->name('product.price');
+
 
         //transaksi
         Route::get('transaksi', [TransaksiController::class, 'index'])->name('transaksi.index');
@@ -57,12 +59,13 @@ Route::middleware(['auth'])->group(
         Route::post('transaksi', [TransaksiController::class, 'store'])->name('transaksi.store');
         Route::get('/transaksi/cetak', [TransaksiController::class, 'cetak'])->name('transaksi.cetak');
 
+
         //voucher
         Route::get('voucher', [VoucherController::class, 'index'])->name('voucher.index');
         Route::post('/voucher/check', [VoucherController::class, 'checkVoucher'])->name('voucher.check');
         Route::post('/voucher/redeem', [VoucherController::class, 'redeemVoucher'])->name('voucher.redeem');
 
-        //produk
+        //riwayat transaksi
         Route::get('riwayat_transaksi', [TransaksiController::class, 'index_riwayat_transaksi'])->name('riwayat_transaksi.index');
         Route::post('riwayat_transaksi/riwayat_transaksi_list', [TransaksiController::class, 'riwayat_transaksi_list'])->name('riwayat_transaksi.list');
     }

@@ -105,4 +105,10 @@ class ProdukController extends Controller
             'message' => 'Data berhasil dihapus'
         ], 200);
     }
+
+    public function getPrice($id)
+    {
+        $product = Produk::find($id);
+        return response()->json(['price' => $product->price]);
+    }
 }
