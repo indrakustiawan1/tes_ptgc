@@ -68,5 +68,10 @@ Route::middleware(['auth'])->group(
         //riwayat transaksi
         Route::get('riwayat_transaksi', [TransaksiController::class, 'index_riwayat_transaksi'])->name('riwayat_transaksi.index');
         Route::post('riwayat_transaksi/riwayat_transaksi_list', [TransaksiController::class, 'riwayat_transaksi_list'])->name('riwayat_transaksi.list');
+
+        // terlaris
+        Route::get('/produk-terlaris', [TransaksiController::class, 'produkDenganPenjualanTerbanyak'])->name('produk-terlaris');
+        //kurang laku
+        Route::get('/produk-kurang-laku', [TransaksiController::class, 'produkDenganPenjualanTerendah'])->name('produk-kurang-laku');
     }
 );

@@ -22,10 +22,37 @@
                     <div class="col-md-12">
                         <div class="card">
                             <div class="card-header">
-                                <a href="javascript:void(0);" class="btn btn-sm btn-primary float-right" data-toggle="modal"
-                                    data-target="#" id="btn-add">Download</a>
+                                <a href="javascript:void(0);" class="btn btn-sm btn-success float-right" data-toggle="modal"
+                                    data-target="#" id="btn-add">Cetak</a>
+                                <a href="javascript:void(0);" class="btn btn-sm btn-info float-right mr-2"
+                                    data-toggle="modal" data-target="#modalTerlaris" id="btn-terlaris">Terlaris</a>
+                                <a href="javascript:void(0);" class="btn btn-sm btn-warning float-right mr-2"
+                                    data-toggle="modal" data-target="#modalKurangLaku" id="btn-kurangLaku">Kurang Laku</a>
+
                             </div>
+
                             <div class="card-body">
+                                <div class="row">
+                                    <div class="form-group col-3">
+                                        <label for="filter_urutTanggal">Latest/Oldest</label>
+                                        <select data-column="1" class="form-control form-control-sm select2"
+                                            data-toggle="select" aria-hidden="true" id="filter_urutTanggal">
+                                            <option value="" selected>Semua</option>
+                                            <option value="0">Latest to Oldest</option>
+                                            <option value="1">Oldest to Latest</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-3">
+                                        <label for="filter_urutNama">Name Order</label>
+                                        <select data-column="1" class="form-control form-control-sm select2"
+                                            data-toggle="select" aria-hidden="true" id="filter_urutNama">
+                                            <option value="" selected>Semua</option>
+                                            <option value="a-z">A to Z</option>
+                                            <option value="z-a">Z to A</option>
+                                        </select>
+                                    </div>
+                                </div>
+
                                 <table id="dtRiwayatTransaksi" class="table table-striped table-bordered">
                                     <thead>
                                         <tr>
@@ -48,6 +75,41 @@
                 </div>
             </div>
         </div>
+        {{-- //terlaris --}}
+        <div class="modal fade" id="modalTerlaris" tabindex="-1" role="dialog" aria-labelledby="modalTerlarisLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-xl" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalTerlarisLabel">Produk Terlaris</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="modalContent">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kurang Laku -->
+        <div class="modal fade" id="modalKurangLaku" tabindex="-1" role="dialog" aria-labelledby="modalKurangLakuLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-xl" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalKurangLakuLabel">Produk Kurang Laku</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="modalContentKurangLaku">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
     </div>
 
     <script>
@@ -59,8 +121,9 @@
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 }
             });
-
-            $('#dtRiwayatTransaksi').DataTable({
+            var urutkanByTanggal = "";
+            var urutkanByNama = "";
+            var dtRiwayatTransaksi = $('#dtRiwayatTransaksi').DataTable({
                 responsive: true,
                 paging: true,
                 bDestroy: true,
@@ -75,7 +138,11 @@
 
                 ajax: {
                     type: 'POST',
-                    url: "{{ route('riwayat_transaksi.list') }}"
+                    url: "{{ route('riwayat_transaksi.list') }}",
+                    data: function(d) {
+                        d.urutTanggal = urutkanByTanggal
+                        d.urutNama = urutkanByNama;
+                    }
                 },
 
                 columns: [{
@@ -121,6 +188,15 @@
                 ]
             });
 
+            $('#filter_urutTanggal, #filter_urutNama')
+                .change(function(e) {
+                    urutkanByTanggal = $('#filter_urutTanggal').val();
+                    urutkanByNama = $('#filter_urutNama').val();
+                    dtRiwayatTransaksi.draw();
+                    e.preventDefault();
+                });
+
+
             $(document).on('click', '.copy-voucher', function() {
                 var voucherCode = $(this).data('code');
                 navigator.clipboard.writeText(voucherCode).then(function() {
@@ -129,6 +205,101 @@
                     console.error('Gagal menyalin teks: ', err);
                 });
             });
+
+            $(document).ready(function() {
+                $('#btn-terlaris').on('click', function() {
+                    // Kirim AJAX request saat modal dibuka
+                    $.ajax({
+                        url: "{{ route('produk-terlaris') }}", // URL sesuai dengan route Anda
+                        type: 'GET',
+                        success: function(response) {
+                            if (response.transaksi.length > 0) {
+                                // Buat tabel untuk modal
+                                let content =
+                                    `<h4>Produk Terlaris: ${response.name_produk}</h4>`;
+                                content += `<table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Customer Name</th>
+                                <th>No. HP</th>
+                                <th>Email</th>
+                                <th>Alamat</th>
+                                <th>Invoice</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                                response.transaksi.forEach(function(transaksi) {
+                                    content += `<tr>
+                            <td>${transaksi.customer_name}</td>
+                            <td>${transaksi.customer_no_hp}</td>
+                            <td>${transaksi.customer_email}</td>
+                            <td>${transaksi.customer_address}</td>
+                            <td>${transaksi.invoice}</td>
+                        </tr>`;
+                                });
+
+                                content += `</tbody></table>`;
+                                $('#modalContent').html(content);
+                            } else {
+                                $('#modalContent').html(
+                                    '<p>Tidak ada data produk.</p>');
+                            }
+                        },
+                        error: function(xhr) {
+                            $('#modalContent').html('<p>Terjadi kesalahan: ' + xhr
+                                .status + ' ' + xhr.statusText + '</p>');
+                        }
+                    });
+                });
+            });
+
+            $('#btn-kurangLaku').on('click', function() {
+                $.ajax({
+                    url: "{{ route('produk-kurang-laku') }}",
+                    type: 'GET',
+                    success: function(response) {
+                        console.log(response);
+                        if (response.transaksi.length > 0) {
+                            let content =
+                                `<h4>Produk Kurang Laku: ${response.name_produk}</h4>`;
+                            content += `<table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>No. HP</th>
+                            <th>Email</th>
+                            <th>Alamat</th>
+                            <th>Invoice</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                            response.transaksi.forEach(function(transaksi) {
+                                content += `<tr>
+                        <td>${transaksi.customer_name}</td>
+                        <td>${transaksi.customer_no_hp}</td>
+                        <td>${transaksi.customer_email}</td>
+                        <td>${transaksi.customer_address}</td>
+                        <td>${transaksi.invoice}</td>
+                    </tr>`;
+                            });
+
+                            content += `</tbody></table>`;
+                            $('#modalContentKurangLaku').html(content);
+                        } else {
+                            $('#modalContentKurangLaku').html('<p>Tidak ada data produk.</p>');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Terjadi kesalahan: ', xhr.status, xhr.statusText);
+                        $('#modalContentKurangLaku').html('<p>Terjadi kesalahan: ' + xhr
+                            .status + ' ' + xhr.statusText + '</p>');
+                    }
+                });
+            });
+
+
         });
     </script>
 @endsection

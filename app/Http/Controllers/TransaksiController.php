@@ -9,6 +9,7 @@ use PDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
 // use Barryvdh\DomPDF\Facade as PDF;
@@ -31,7 +32,6 @@ class TransaksiController extends Controller
             'customer_address' => 'required|string|max:500',
             'customer_no_hp' => 'required|string|max:500',
             'product_id.*' => 'required|exists:produk,id',
-            'quantity.*' => 'required|integer|min:1',
             'price.*' => 'required|numeric|min:0',
             'total.*' => 'required|numeric|min:0',
         ]);
@@ -75,6 +75,12 @@ class TransaksiController extends Controller
                     'created_by' => Auth::user()->id,
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
+
+                // Kurangi stok produk dan tambahkan quantity_sold
+                $product = Produk::find($productId);
+                $product->stock -= $request->quantity[$key];
+                $product->quantity_sold += $request->quantity[$key];
+                $product->save();
             }
 
             // Set transaction ID for response
@@ -83,6 +89,7 @@ class TransaksiController extends Controller
 
         return response()->json(['transaction_id' => $transactionId]);
     }
+
 
     // public function cetak(Request $request)
     // {
@@ -146,7 +153,30 @@ class TransaksiController extends Controller
     public function riwayat_transaksi_list(Request $request)
     {
         if ($request->ajax()) {
-            $data = Transaksi::where('created_by', Auth::user()->id)->orderBy('created_at', 'desc');
+            $data = Transaksi::where('created_by', Auth::user()->id);
+
+            // Pengurutan berdasarkan tanggal
+            if ($request->has('urutTanggal')) {
+                $urutTanggal = $request->input('urutTanggal');
+                if ($urutTanggal == '0') {
+                    $data->orderBy('created_at', 'desc'); // Urutkan dari terbaru ke terlama
+                } elseif ($urutTanggal == '1') {
+                    $data->orderBy('created_at', 'asc'); // Urutkan dari terlama ke terbaru
+                }
+            }
+            // Pengurutan berdasarkan nama
+            if ($request->has('urutNama')) {
+                $urutNama = $request->input('urutNama');
+                Log::info('urutNama: ' . $urutNama);
+                if ($urutNama == 'a-z') {
+                    $data->orderBy('customer_name', 'asc'); // Urutkan dari A ke Z
+                    Log::info('Data ordered by name asc: ', $data->get()->toArray());
+                } elseif ($urutNama == 'z-a') {
+                    $data->orderBy('customer_name', 'desc'); // Urutkan dari Z ke A
+                    Log::info('Data ordered by name desc: ', $data->get()->toArray());
+                }
+            }
+
             return DataTables::of($data->get())
                 ->addIndexColumn()
                 ->addColumn('customer_name', function ($value) {
@@ -176,5 +206,61 @@ class TransaksiController extends Controller
                 ->rawColumns(['customer_name', 'customer_no_hp', 'customer_email', 'customer_address', 'total_harga', 'invoice', 'kode_voucher'])
                 ->make(true);
         }
+    }
+
+    public function produkDenganPenjualanTerbanyak()
+    {
+        $produkPenjualan = Transaksi_items::select('id_produk')
+            ->selectRaw('SUM(jumlah) as total_penjualan')
+            ->groupBy('id_produk')
+            ->orderBy('total_penjualan', 'desc')
+            ->first();
+
+        if (!$produkPenjualan) {
+            return response()->json(['message' => 'Tidak ada data produk'], 404);
+        }
+
+        $idProdukTerbanyak = $produkPenjualan->id_produk;
+        $produk = Produk::where('id', $idProdukTerbanyak)->first();
+        $produk = $produk->name;
+        $transaksiDenganProdukTerbanyak = Transaksi_items::where('id_produk', $idProdukTerbanyak)
+            ->pluck('id_transaksi')
+            ->unique();
+
+        $transaksiDetail = Transaksi::whereIn('id', $transaksiDenganProdukTerbanyak)->get();
+
+        return response()->json([
+            'id_produk' => $idProdukTerbanyak,
+            'name_produk' => $produk,
+            'transaksi' => $transaksiDetail
+        ]);
+    }
+
+    public function produkDenganPenjualanTerendah()
+    {
+        $produkPenjualan = Transaksi_items::select('id_produk')
+            ->selectRaw('SUM(jumlah) as total_penjualan')
+            ->groupBy('id_produk')
+            ->orderBy('total_penjualan', 'asc')
+            ->first();
+
+        if (!$produkPenjualan) {
+            return response()->json(['message' => 'Tidak ada data produk'], 404);
+        }
+
+        $idProdukTerendah = $produkPenjualan->id_produk;
+        $produk = Produk::where('id', $idProdukTerendah)->first();
+        $produk = $produk->name;
+        $transaksiDenganProdukTerendah = Transaksi_items::where('id_produk', $idProdukTerendah)
+            ->pluck('id_transaksi')
+            ->unique();
+
+        $transaksiDetail = Transaksi::whereIn('id', $transaksiDenganProdukTerendah)->get();
+
+        return response()->json([
+            'id_produk' => $idProdukTerendah,
+            'name_produk' => $produk,
+            'transaksi' => $transaksiDetail
+        ]);
     }
 }

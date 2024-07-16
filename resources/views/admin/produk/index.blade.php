@@ -26,6 +26,27 @@
                                     data-target="#modalProduk" id="btn-add">Tambah</a>
                             </div>
                             <div class="card-body">
+                                <div class="row">
+                                    <div class="form-group col-3">
+                                        <label for="filter_urutTanggal">Latest/Oldest</label>
+                                        <select data-column="1" class="form-control form-control-sm select2"
+                                            data-toggle="select" aria-hidden="true" id="filter_urutTanggal">
+                                            <option value="" selected>Semua</option>
+                                            <option value="0">Latest to Oldest</option>
+                                            <option value="1">Oldest to Latest</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-3">
+                                        <label for="filter_urutNama">Name Order</label>
+                                        <select data-column="1" class="form-control form-control-sm select2"
+                                            data-toggle="select" aria-hidden="true" id="filter_urutNama">
+                                            <option value="" selected>Semua</option>
+                                            <option value="a-z">A to Z</option>
+                                            <option value="z-a">Z to A</option>
+                                        </select>
+                                    </div>
+                                </div>
+
                                 <table id="dtProduk" class="table table-striped table-bordered">
                                     <thead>
                                         <tr>
@@ -34,6 +55,7 @@
                                             <th>Deskripsi</th>
                                             <th>Harga</th>
                                             <th>Stok</th>
+                                            <th>Terjual</th>
                                             <th>Kategori</th>
                                             <th>Aksi</th>
                                         </tr>
@@ -111,8 +133,10 @@
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 }
             });
+            var urutkanByTanggal = "";
+            var urutkanByNama = "";
 
-            $('#dtProduk').DataTable({
+            var dtProduk = $('#dtProduk').DataTable({
                 responsive: true,
                 paging: true,
                 bDestroy: true,
@@ -127,7 +151,11 @@
 
                 ajax: {
                     type: 'POST',
-                    url: "{{ route('produk.list') }}"
+                    url: "{{ route('produk.list') }}",
+                    data: function(d) {
+                        d.urutTanggal = urutkanByTanggal
+                        d.urutNama = urutkanByNama;
+                    }
                 },
 
                 columns: [{
@@ -154,6 +182,10 @@
                         name: 'stock',
                     },
                     {
+                        data: 'quantity_sold',
+                        name: 'quantity_sold',
+                    },
+                    {
                         data: 'category',
                         name: 'category',
                     },
@@ -165,6 +197,15 @@
                     },
                 ]
             });
+
+
+            $('#filter_urutTanggal, #filter_urutNama')
+                .change(function(e) {
+                    urutkanByTanggal = $('#filter_urutTanggal').val();
+                    urutkanByNama = $('#filter_urutNama').val();
+                    dtProduk.draw();
+                    e.preventDefault();
+                });
 
             // create
             $('#formProduk').submit(function(e) {
